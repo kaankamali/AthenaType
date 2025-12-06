@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AthenaType</title>
+    <link rel="icon" href="logo.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Lora:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* --- CSS --- */
+        :root { --theme-color: #ff3838; --correct-color: #99cc66; --bg-color: #111111; --bg-secondary: #1c1c1c; --text-sub: #646669; --text-main: #d1d0c5; --line-height: 50px; --font-family: 'Roboto Mono', monospace; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-family); transition: background-color 0.2s, color 0.2s; }
+        body { display: flex; flex-direction: column; justify-content: space-between; align-items: center; min-height: 100vh; background: var(--bg-color); color: var(--text-sub); overflow: hidden; }
+
+        header { width: 100%; max-width: 1200px; padding: 30px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+        .brand { display: flex; align-items: center; gap: 12px; font-size: 1.8rem; font-weight: 700; color: var(--text-main); cursor: pointer; user-select: none; }
+        .brand span { color: var(--theme-color); transition: color 0.3s; }
+        .brand-logo { height: 50px; width: auto; border-radius: 10px; display: block; }
+        .brand:active { transform: scale(0.95); }
+
+        .lang-switcher { display: flex; gap: 10px; font-size: 0.9rem; font-weight: bold; }
+        .lang-opt { cursor: pointer; color: var(--text-sub); transition: 0.2s; padding: 5px 10px; border-radius: 4px; text-decoration: none; }
+        .lang-opt:hover { color: var(--text-main); }
+        .lang-opt.active { color: var(--theme-color); background: var(--bg-secondary); }
+        
+        /* GÜNCELLEME: Sağ tarafa hafif boşluk eklendi */
+        .nav-links { display: flex; gap: 15px; align-items: center; justify-self: end; padding-right: 5px; }
+        
+        .nav-btn { font-size: 0.9rem; cursor: pointer; transition: 0.2s; padding: 10px 18px; border-radius: 20px; color: var(--text-sub); display: flex; align-items: center; gap: 8px; background: transparent; border: 1px solid transparent; }
+        .nav-btn:hover { color: var(--text-main); background: var(--bg-secondary); }
+        .nav-btn.filled { background: var(--bg-secondary); color: var(--text-main); }
+        .nav-btn.filled:hover { background: #333; }
+        
+        /* GÜNCELLEME: Flex-shrink engellendi */
+        .icon-btn { padding: 10px; border-radius: 50%; cursor: pointer; color: var(--text-sub); transition: 0.2s; display: flex; flex-shrink: 0; }
+        .icon-btn:hover { color: var(--text-main); background: var(--bg-secondary); }
+        
+        /* GÜNCELLEME: İkon boyutları sabitlendi ve taşma görünür yapıldı */
+        .icon-btn svg { overflow: visible; width: 24px; height: 24px; }
+
+        .heatmap-btn { color: var(--theme-color); border: 1px solid var(--theme-color); }
+        .heatmap-btn:hover { background: var(--theme-color); color: #fff; }
+
+        .wrapper { width: 1000px; position: relative; display: flex; flex-direction: column; justify-content: center; }
+        .game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 0 10px; }
+        .config-bar { background: var(--bg-secondary); padding: 8px 15px; border-radius: 6px; display: flex; gap: 15px; font-size: 0.9rem; }
+        .time-option { cursor: pointer; font-weight: bold; transition: color 0.2s; }
+        .time-option:hover { color: var(--text-main); }
+        .time-option.active { color: var(--theme-color); }
+        
+        .stats-container { display: flex; gap: 20px; align-items: center; }
+        .live-stats { font-size: 1.5rem; color: var(--theme-color); font-weight: bold; }
+        .pb-stats { font-size: 0.9rem; color: var(--text-sub); display: flex; align-items: center; gap: 5px; opacity: 0.7; }
+        .pb-stats svg { width: 14px; height: 14px; color: #ffd700; } 
+
+        .typing-box-frame { position: relative; height: 155px; overflow: hidden; border-radius: 8px; mask-image: linear-gradient(to bottom, black 60%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%); }
+        .input-field { position: absolute; z-index: -999; opacity: 0; }
+        .content-box { position: relative; font-size: 1.6rem; line-height: var(--line-height); letter-spacing: 1px; display: flex; flex-wrap: wrap; align-content: flex-start; user-select: none; transition: margin-top 0.25s cubic-bezier(0.25, 1, 0.5, 1); color: #4a4a4a; margin-top: 0; }
+        .content-box.loaded { animation: fadeInSmooth 0.4s ease-out forwards; }
+        @keyframes fadeInSmooth { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .word { margin-right: 14px; display: flex; }
+        .content-box span { position: relative; border-bottom: 2px solid transparent; }
+        #cursor { position: absolute; width: 3px; height: 32px; background: var(--theme-color); border-radius: 2px; top: 9px; left: 0; z-index: 10; pointer-events: none; transition: left 0.1s ease, top 0.1s ease; display: none; }
+        #cursor.no-smooth { transition: none !important; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        #cursor.blinking { animation: blink 1s infinite; }
+        #cursor.typing { animation: none; opacity: 1; }
+
+        .content-box span.correct { color: var(--correct-color); text-shadow: 0 0 2px rgba(153, 204, 102, 0.2); }
+        .content-box span.incorrect { color: var(--theme-color); text-decoration: underline; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); animation: fadeIn 0.2s ease; }
+        .modal-content { background: #111; padding: 30px; border-radius: 12px; width: 750px; max-height: 85vh; overflow-y: auto; text-align: center; border: 1px solid #333; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: var(--text-sub); }
+        .modal-close:hover { color: var(--text-main); }
+        .modal-title { font-size: 1.5rem; color: var(--text-main); margin-bottom: 20px; text-align: left; padding-bottom: 15px; border-bottom: 1px solid #222; }
+
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #222; }
+        .setting-label { color: var(--text-main); font-weight: bold; text-align: left; }
+        .setting-desc { color: var(--text-sub); font-size: 0.8rem; display: block; margin-top: 4px; text-align: left; }
+        
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--theme-color); }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        .color-options, .sound-options { display: flex; gap: 10px; flex-wrap: wrap; }
+        .color-swatch { width: 25px; height: 25px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
+        .color-swatch:hover { transform: scale(1.1); }
+        .color-swatch.active { border-color: #fff; transform: scale(1.2); }
+        .option-btn { padding: 6px 12px; border: 1px solid #333; border-radius: 4px; cursor: pointer; color: var(--text-sub); font-size: 0.85rem; }
+        .option-btn:hover { background: #222; color: var(--text-main); }
+        .option-btn.active { background: var(--theme-color); color: #fff; border-color: var(--theme-color); }
+        .btn-danger { background: transparent; color: #ca4754; border: 1px solid #ca4754; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: 0.2s; }
+        .btn-danger:hover { background: #ca4754; color: white; }
+
+        .keyboard-container { display: flex; flex-direction: column; gap: 8px; margin-bottom: 30px; align-items: center; width: 100%; }
+        .keyboard-row { display: flex; gap: 6px; justify-content: center; width: 100%; white-space: nowrap; }
+        .key-cap { width: 45px; height: 45px; border-radius: 6px; background: #222; color: var(--text-sub); display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; font-size: 1.1rem; user-select: none; transition: 0.2s; border-bottom: 3px solid #111; flex-shrink: 0; }
+        .key-cap:hover { background: #333; color: var(--text-main); margin-top: 1px; border-bottom-width: 2px; }
+        .key-cap.selected { background: #c0392b; color: #fff; border-bottom-color: #962d22; }
+
+        .modal-actions { display: flex; justify-content: center; gap: 20px; }
+        .action-btn { padding: 10px 25px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+        .btn-save { background: var(--text-main); color: var(--bg-color); }
+        .btn-clear { background: transparent; color: var(--text-sub); border: 1px solid var(--text-sub); }
+        .btn-clear:hover { color: var(--text-main); border-color: var(--text-main); }
+
+        .heatmap-key { position: relative; overflow: hidden; pointer-events: none; }
+        .heatmap-legend { display: flex; justify-content: center; gap: 20px; margin-top: 15px; font-size: 0.8rem; }
+        .legend-item { display: flex; align-items: center; gap: 5px; } .legend-color { width: 12px; height: 12px; border-radius: 2px; }
+        
+        .changelog-list { text-align: left; margin-bottom: 20px; padding-right: 10px; }
+        .changelog-item { margin-bottom: 25px; position: relative; padding-left: 15px; border-left: 2px solid #222; }
+        .changelog-version { color: var(--theme-color); font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
+        .changelog-date { color: var(--text-sub); font-size: 0.8rem; background: #1c1c1c; padding: 2px 6px; border-radius: 4px; font-weight: normal; }
+        .changelog-desc { margin-top: 8px; color: var(--text-main); font-size: 0.9rem; line-height: 1.6; padding-left: 5px; }
+        .changelog-desc li { list-style-type: none; position: relative; padding-left: 15px; }
+        .changelog-desc li::before { content: "•"; color: var(--text-sub); position: absolute; left: 0; }
+
+        header, footer { transition: opacity 0.3s ease; }
+        body.focused header, body.focused footer { opacity: 0.1; pointer-events: none; }
+        body.focused header:hover, body.focused footer:hover { opacity: 1; pointer-events: all; }
+
+        .blur-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(17, 17, 17, 0.85); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 20; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+        .blur-overlay.show { opacity: 1; pointer-events: all; } .blur-overlay p { color: #fff; font-size: 1.4rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        
+        .result-screen { display: none; flex-direction: column; align-items: center; animation: fadeIn 0.3s ease; margin-bottom: 50px; }
+        .result-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 50px; margin-bottom: 40px; text-align: center; }
+        .result-item .label { font-size: 1rem; color: var(--text-sub); } .result-item .value { font-size: 3rem; color: var(--theme-color); font-weight: bold; line-height: 1; }
+        .new-record-tag { background: #d4af37; color: #000; font-weight: bold; font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; margin-top: 10px; display: none; }
+        
+        #retry-btn { margin-top: 30px; padding: 12px; border: none; background: #1c1c1c; color: var(--text-sub); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 50px; height: 50px; margin-left: auto; margin-right: auto; transition: all 0.2s; }
+        #retry-btn:hover { color: var(--text-main); background: #333; transform: scale(1.1); }
+        #retry-btn:focus { outline: 2px solid var(--theme-color); }
+        .hidden { display: none !important; }
+        footer { width: 100%; max-width: 1200px; padding: 20px 30px; display: flex; justify-content: center; align-items: center; font-size: 0.85rem; color: #444; position: relative; }
+        .copyright { text-align: center; } .version { position: absolute; right: 30px; }
+        .version-tag { background: #1c1c1c; padding: 6px 12px; border-radius: 4px; color: var(--text-sub); cursor: pointer; transition: 0.2s; border: 1px solid transparent; font-family: monospace; }
+        .version-tag:hover { color: var(--text-main); border-color: var(--text-sub); background: #222; }
+    </style>
+</head>
+<body>
+
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="modal-close" onclick="closeModal('settings-modal')">&times;</span>
+            <h2 class="modal-title" data-i18n="settingsTitle">Settings</h2>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label" data-i18n="keySound">Keyboard Sound</div>
+                    <span class="setting-desc" data-i18n="keySoundDesc">Mechanical, Thock or Osu! sound.</span>
+                </div>
+                <div class="sound-options">
+                    <div class="option-btn" id="sound-off" onclick="setSound('off')">Off</div>
+                    <div class="option-btn" id="sound-mech" onclick="setSound('mech')">Mech</div>
+                    <div class="option-btn" id="sound-thock" onclick="setSound('thock')">Thock</div>
+                    <div class="option-btn" id="sound-osu" onclick="setSound('osu')">Osu!</div>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label" data-i18n="themeColor">Theme Color</div>
+                    <span class="setting-desc" data-i18n="themeColorDesc">UI accent color.</span>
+                </div>
+                <div class="color-options">
+                    <div class="color-swatch" style="background:#ff3838" onclick="setTheme('#ff3838', this)"></div>
+                    <div class="color-swatch" style="background:#3498db" onclick="setTheme('#3498db', this)"></div>
+                    <div class="color-swatch" style="background:#2ecc71" onclick="setTheme('#2ecc71', this)"></div>
+                    <div class="color-swatch" style="background:#e67e22" onclick="setTheme('#e67e22', this)"></div>
+                    <div class="color-swatch" style="background:#9b59b6" onclick="setTheme('#9b59b6', this)"></div>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label" data-i18n="focusMode">Focus Mode</div>
+                    <span class="setting-desc" data-i18n="focusModeDesc">Hide UI while typing.</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="focus-toggle" onchange="toggleFocusMode()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label" data-i18n="smoothCaret">Smooth Caret</div>
+                    <span class="setting-desc" data-i18n="smoothCaretDesc">Animate caret movement.</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="smooth-toggle" onchange="toggleSmoothCursor()" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label" data-i18n="dataMgmt">Data Management</div>
+                    <span class="setting-desc" data-i18n="dataMgmtDesc">Reset personal bests.</span>
+                </div>
+                <button class="btn-danger" onclick="resetPersonalBests()" data-i18n="resetBtn">Reset</button>
+            </div>
+            <div class="setting-row" style="border-bottom: none; padding-bottom: 0;">
+                <div>
+                    <div class="setting-label" data-i18n="shortcut">Shortcut</div>
+                    <span class="setting-desc" data-i18n="shortcutDesc">Quick Restart: <strong style="color:var(--theme-color);">TAB + ENTER</strong></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="heatmap-modal">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="modal-close" onclick="closeModal('heatmap-modal')">&times;</span>
+            <h2 class="modal-title" data-i18n="heatmapTitle">Error Heatmap</h2>
+            <div class="keyboard-container" id="heatmap-container"></div>
+            <div class="heatmap-legend">
+                <div class="legend-item"><div class="legend-color" style="background:var(--bg-secondary); border:1px solid #444;"></div> No Data</div>
+                <div class="legend-item"><div class="legend-color" style="background:#2ecc71;"></div> Excellent</div>
+                <div class="legend-item"><div class="legend-color" style="background:#f1c40f;"></div> Average</div>
+                <div class="legend-item"><div class="legend-color" style="background:#e74c3c;"></div> Poor</div>
+            </div>
+            <p style="margin-top:20px; font-size:0.8rem; color:#666;" data-i18n="heatmapDesc">Shows your lifetime typing performance.</p>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="keyboard-modal">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="modal-close" onclick="closeModal('keyboard-modal')">&times;</span>
+            <h2 class="modal-title" data-i18n="filterTitle">Filter Keys</h2>
+            <div class="keyboard-container" id="keyboard-container"></div>
+            <div class="modal-actions">
+                <button class="action-btn btn-clear" onclick="clearSelection()" data-i18n="clearBtn">Clear</button>
+                <button class="action-btn btn-save" onclick="saveAndClose()" data-i18n="saveBtn">Save & Start</button>
+            </div>
+            <p style="margin-top:15px; font-size:0.8rem; color:#555;" data-i18n="filterNote1">Selection saves automatically.</p>
+            <p style="margin-top:5px; font-size:0.8rem; color:var(--theme-color); font-weight:bold;" data-i18n="filterNote2">Note: Personal Bests (PB) are disabled when filter is active.</p>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="changelog-modal">
+        <div class="modal-content" style="width: 650px;" onclick="event.stopPropagation()">
+            <span class="modal-close" onclick="closeModal('changelog-modal')">&times;</span>
+            <h2 class="modal-title">Changelog</h2>
+            <div class="changelog-list">
+                <div class="changelog-item"><div class="changelog-version">v5.0 Global Echo <span class="changelog-date">Current</span></div><ul class="changelog-desc"><li><strong>Multi-Language:</strong> TR/EN options.</li><li><strong>Heatmap:</strong> QWERTY layout analysis.</li><li><strong>Sounds:</strong> Realistic Audio Engine.</li><li><strong>UI/UX:</strong> Unified structure, improved interaction.</li></ul></div>
+                <div class="changelog-item"><div class="changelog-version">v4.0 Cookie Monster</div><ul class="changelog-desc"><li><strong>System:</strong> Settings menu, Persistent data (LocalStorage), PB.</li></ul></div>
+                <div class="changelog-item"><div class="changelog-version">v3.0 Trainer</div><ul class="changelog-desc"><li><strong>Mode:</strong> Letter filtering & QWERTY layout.</li></ul></div>
+                <div class="changelog-item"><div class="changelog-version">v2.0 Design</div><ul class="changelog-desc"><li><strong>Visuals:</strong> Deep Dark Mode, Custom Colors.</li></ul></div>
+                <div class="changelog-item"><div class="changelog-version">v1.0 Core</div><ul class="changelog-desc"><li><strong>Core:</strong> Infinite flow, WPM Calc, Time modes.</li></ul></div>
+                <div class="changelog-item"><div class="changelog-version">v0.5 Init</div><ul class="changelog-desc"><li>Prototype.</li></ul></div>
+            </div>
+            <button class="action-btn btn-save" onclick="closeModal('changelog-modal')">Close</button>
+        </div>
+    </div>
+
+    <header>
+        <div class="brand" onclick="resetGame()">
+            <img src="logo.png" alt="Athena Logo" class="brand-logo">
+            Athena<span>Type</span>
+        </div>
+        <div class="lang-switcher">
+            <div class="lang-opt" id="lang-tr" onclick="setLanguage('tr')">TR</div>
+            <span style="color:#333">|</span>
+            <div class="lang-opt active" id="lang-en" onclick="setLanguage('en')">EN</div>
+        </div>
+        <nav class="nav-links">
+            <div class="nav-btn filled" onclick="openModal('keyboard-modal')" data-i18n="filterBtn">Filter Keys</div>
+            <div class="icon-btn heatmap-btn" onclick="openHeatmap()" title="Analiz">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="overflow: visible;"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
+            </div>
+            <div class="icon-btn" onclick="openModal('settings-modal')">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="overflow: visible;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </div>
+        </nav>
+    </header>
+
+    <div class="wrapper">
+        <div class="game-header" id="header">
+            <div class="config-bar">
+                <span class="time-option active" data-time="15" onclick="setTime(15)">15</span>
+                <span class="time-option" data-time="30" onclick="setTime(30)">30</span>
+                <span class="time-option" data-time="60" onclick="setTime(60)">60</span>
+                <span class="time-option" data-time="120" onclick="setTime(120)">120</span>
+            </div>
+            <div class="stats-container">
+                <div class="pb-stats" title="Personal Best"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg> PB: <span id="pb-value">0</span></div>
+                <div class="live-stats"><span id="time">15</span></div>
+            </div>
+        </div>
+        <div class="typing-box-frame" id="typing-box-container">
+            <input type="text" class="input-field">
+            <div class="content-box"><div id="cursor" class="blinking"></div></div>
+            <div class="blur-overlay" id="blur-text"><p data-i18n="clickToFocus">Click to focus</p></div>
+        </div>
+        <div class="result-screen" id="result-screen">
+            <h2 style="color:#646669; margin-bottom:10px;" data-i18n="timeUp">Time's Up</h2>
+            <div class="new-record-tag" id="new-record-tag" data-i18n="newRecord">NEW RECORD! 👑</div>
+            <div class="result-grid" style="margin-top: 30px;">
+                <div class="result-item"><span class="label">WPM</span><span class="value big" id="res-wpm">0</span></div>
+                <div class="result-item"><span class="label" data-i18n="accuracy">Accuracy</span><span class="value" id="res-acc">0%</span></div>
+            </div>
+            <p style="color:#666;"><span data-i18n="chars">Characters</span>: <span style="color:#99cc66" id="res-correct">0</span> / <span style="color:#ff3838" id="res-wrong">0</span></p>
+        </div>
+        <button id="retry-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg></button>
+    </div>
+    <footer><div class="copyright">&copy; 2025 AthenaType</div><div class="version"><span class="version-tag" onclick="openModal('changelog-modal')">v5.0 Global Echo</span></div></footer>
+
+    <script>
+        const ui = {
+            tr: {
+                settingsTitle: "Ayarlar", keySound: "Klavye Sesi", keySoundDesc: "Mekanik, Tok veya Osu! sesi.",
+                themeColor: "Tema Rengi", themeColorDesc: "Arayüzün vurgu rengini seç.",
+                focusMode: "Focus Modu", focusModeDesc: "Yazarken arayüzü gizle.",
+                smoothCaret: "Yumuşak İmleç", smoothCaretDesc: "İmlecin kayarak hareket etmesi.",
+                dataMgmt: "Veri Yönetimi", dataMgmtDesc: "Kişisel rekorlarını sıfırla.",
+                shortcut: "Kısayol", shortcutDesc: "Hızlı Yeniden Başlat: <strong style='color:var(--theme-color);'>TAB + ENTER</strong>",
+                resetBtn: "Sıfırla", filterTitle: "Filtre",
+                clearBtn: "Temizle", saveBtn: "Kaydet",
+                filterNote1: "Seçimler otomatik kaydedilir.", filterNote2: "Dikkat: Filtre aktifken PB kaydedilmez.",
+                filterBtn: "Filtrele", clickToFocus: "Odaklanmak için tıkla",
+                timeUp: "Süre Doldu", newRecord: "YENİ REKOR! 👑", accuracy: "Doğruluk", chars: "Karakterler",
+                alertReset: "Tüm veriler silinecek. Emin misin?", alertResetDone: "Sıfırlandı.", alertNoWords: "Kelime bulunamadı.",
+                heatmapTitle: "Hata Haritası", heatmapDesc: "Tüm zamanlardaki performans."
+            },
+            en: {
+                settingsTitle: "Settings", keySound: "Keyboard Sound", keySoundDesc: "Mechanical, Thock or Osu! sounds.",
+                themeColor: "Theme Color", themeColorDesc: "UI accent color.",
+                focusMode: "Focus Mode", focusModeDesc: "Hide UI while typing.",
+                smoothCaret: "Smooth Caret", smoothCaretDesc: "Animate caret movement.",
+                dataMgmt: "Data Management", dataMgmtDesc: "Reset personal bests.",
+                shortcut: "Shortcut", shortcutDesc: "Quick Restart: <strong style='color:var(--theme-color);'>TAB + ENTER</strong>",
+                resetBtn: "Reset", filterTitle: "Filter Keys",
+                clearBtn: "Clear", saveBtn: "Save & Start",
+                filterNote1: "Selection saved automatically.", filterNote2: "Note: PBs disabled when filter active.",
+                filterBtn: "Filter Keys", clickToFocus: "Click to focus",
+                timeUp: "Time's Up", newRecord: "NEW RECORD! 👑", accuracy: "Accuracy", chars: "Characters",
+                alertReset: "Are you sure you want to delete all data?", alertResetDone: "Data reset.", alertNoWords: "No words found.",
+                heatmapTitle: "Error Heatmap", heatmapDesc: "Shows your lifetime typing performance."
+            }
+        };
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function createNoiseBuffer() {
+            const bufferSize = audioCtx.sampleRate * 2.0;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for(let i=0; i<bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            return buffer;
+        }
+        const noiseBuffer = createNoiseBuffer();
+
+        function playKeySound() {
+            if(selectedSound === 'off' || audioCtx.state === 'suspended') { if(selectedSound !== 'off') audioCtx.resume(); return; }
+            const t = audioCtx.currentTime;
+            if(selectedSound === 'mech') {
+                const src=audioCtx.createBufferSource(), gain=audioCtx.createGain(), filter=audioCtx.createBiquadFilter();
+                src.buffer=noiseBuffer; filter.type='lowpass'; filter.frequency.value=1000;
+                gain.gain.setValueAtTime(0.5, t); gain.gain.exponentialRampToValueAtTime(0.01, t+0.05);
+                src.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+                src.start(); src.stop(t+0.05);
+            } else if(selectedSound === 'thock') {
+                const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+                osc.frequency.setValueAtTime(150, t); osc.frequency.exponentialRampToValueAtTime(40, t+0.1);
+                gain.gain.setValueAtTime(0.5, t); gain.gain.exponentialRampToValueAtTime(0.01, t+0.1);
+                osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(t+0.1);
+            } else if(selectedSound === 'osu') {
+                const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+                osc.type='sine'; osc.frequency.setValueAtTime(2200, t);
+                gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.01, t+0.03);
+                osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(t+0.03);
+            }
+        }
+
+        const wordsTR = "zaman insan devlet halk kitap bilgi dünya hayat kalem kağıt deniz gökyüzü toprak ağaç çiçek sevgi saygı barış savaş tarih kültür sanat müzik resim bilim teknik akıl fikir düşünce özgürlük adalet hukuk yasa karar sonuç amaç hedef başarı emek üretim tüketim piyasa ekonomi para değer fiyat anlam kelime cümle yazı söz ses ışık renk arkadaş aile çocuk okul öğrenci öğretmen sınıf ders konu sınav soru cevap doğru yanlış güzel çirkin iyi kötü büyük küçük uzun kısa geniş dar yeni eski hızlı yavaş kolay zor basit sistem yöntem model veri analiz proje ekip takım lider yönetim plan strateji kalite kontrol süreç gelişim eğitim öğretim bilgisayar yazılım kodlama evren uzay yıldız güneş ay bulut yağmur kar rüzgar fırtına doğa çevre iklim enerji sabah akşam gece gündüz bugün yarın hafta aylar yıllar yüzyıl dönem çağ anı hatıra geçmiş gelecek duygu his korku sevinç üzüntü öfke heyecan umut hayal rüya gerçek yalan sır haber olay durum sorun çözüm imkan fırsat risk tehlike güven inanç şüphe merak ilgi yetenek beceri tecrübe deneyim uzman usta çırak işçi memur patron şirket ofis masa sandalye pencere kapı duvar çatı bina ev sokak cadde şehir ülke kıta okyanus nehir göl dağ tepe ova vadi orman çöl kutup ada yarımada körfez liman gemi uçak tren otobüs araba bisiklet yol köprü tünel istasyon havaalanı garaj park bahçe tarla çiftlik köy kasaba merkez kenar köşe nokta çizgi şekil biçim yapı doku yüzey hacim kütle ağırlık boy en derinlik yükseklik sıcaklık soğukluk basınç kuvvet hareket hız ivme yön taraf sağ sol ön arka üst alt iç dış orta ara yan yakın uzak mavi yeşil kırmızı sarı beyaz siyah mor turuncu gri kahverengi lacivert pembe altın gümüş bronz demir bakır çelik cam plastik ahşap taş beton tuğla kiremit asfalt toprak kum çamur toz duman ateş su buz buhar elektrik manyetik atom molekül hücre organ doku kemik kas sinir beyin kalp mide ciğer damar kan nefes yemek içmek uyumak uyanmak koşmak yürümek durmak bakmak görmek duymak dinlemek koklamak tatmak hissetmek dokunmak sevmek nefret etmek gülmek ağlamak korkmak şaşırmak düşünmek anlamak bilmek öğrenmek öğretmek yazmak okumak çizmek boyamak silmek kesmek yapıştırmak açmak kapamak girmek çıkmak almak vermek satmak ödemek kazanmak kaybetmek bulmak aramak sormak söylemek konuşmak susmak bağırmak fısıldamak çağırmak beklemek acele etmek gecikmek başlamak bitirmek devam etmek bırakmak vazgeçmek denemek başarmak yanılmak düzeltmek değiştirmek bozmak yapmak etmek olmak kalmak gitmek gelmek dönmek durmak kalkmak oturmak yatmak uçmak yüzmek dalmak tırmanmak düşmek atlamak zıplamak oynamak çalışmak dinlenmek gezmek eğlenmek kutlamak hediye etmek paylaşmak yardım etmek korumak saklamak gizlemek göstermek anlatmak açıklamak tartışmak anlaşmak sözleşmek imzalamak onaylamak reddetmek seçmek beğenmek istemek dilemek ummak sanmak zannetmek inanmak güvenmek şüphelenmek kıskanmak özlemek hatırlamak unutmak affetmek suçlamak yargılamak cezalandırmak ödüllendirmek yönetmek idare etmek kurmak yıkmak inşa etmek üretmek tüketmek biriktirmek harcamak saymak ölçmek tartmak biçmek dikmek örmek dokumak pişirmek yemek hazırlamak temizlemek yıkamak silmek süpürmek ütülemek katlamak toplamak dağıtmak atmak tutmak yakalamak kaçmak kovalamak";
+        const wordsEN = "the be to of and a in that have I it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us is are was were been has had she he it they we you I there here where when why how what which who whom whose this that these those my your his her its our their mine yours hers ours theirs myself yourself himself herself itself ourselves yourselves anything something nothing everything anyone someone no one everyone anybody somebody nobody everybody each every either neither all both half many much few little a lot of lots of several some any enough more most less least no none other another such what rather quite very too so as well like same different such nice fine good bad big small long short high low deep shallow broad narrow far near thick thin fat thin happy sad rich poor hot cold warm cool clean dirty dry wet hard soft heavy light dark bright strong weak old young new fast slow early late right wrong true false easy difficult safe dangerous quiet noisy full empty open shut busy free ready delicious fresh sweet sour bitter salty cheap expensive interesting boring important funny strange serious wonderful terrible beautiful ugly kind cruel polite rude brave cowardly careful careless friendly hostile lucky unlucky healthy sick";
+        
+        const qwertyRows = ["qwertyuıopğü", "asdfghjklşi", "zxcvbnmöç"];
+        const alphabet = qwertyRows.join("");
+
+        let currentWordList = [];
+        let allowedKeys = new Set(alphabet.split("")); 
+        let selectedSound = 'off';
+        let smoothCursor = true;
+        let currentTheme = "#ff3838";
+        let focusMode = false;
+        let currentLang = 'en'; // DEFAULT EN
+        let charStats = {};
+
+        const typingText = document.querySelector(".content-box");
+        const inpField = document.querySelector(".input-field");
+        const timeTag = document.querySelector("#time");
+        const pbValueTag = document.getElementById("pb-value");
+        const newRecordTag = document.getElementById("new-record-tag");
+        let cursor = document.getElementById("cursor");
+        let timer, selectedTime = 15, maxTime = 15, timeLeft = 15, charIndex = 0, mistakes = 0, correctChars = 0, isTyping = false;
+        const LINE_HEIGHT = 50;
+
+        function loadPreferences() {
+            const savedConfig = localStorage.getItem('athena_config');
+            if (savedConfig) {
+                const config = JSON.parse(savedConfig);
+                if([15, 30, 60, 120].includes(config.time)) { selectedTime = config.time; maxTime = config.time; timeLeft = config.time; }
+                if(config.keys && config.keys.length > 0) allowedKeys = new Set(config.keys);
+                if(config.sound !== undefined) setSound(config.sound, false);
+                if(config.smooth !== undefined) { smoothCursor = config.smooth; document.getElementById('smooth-toggle').checked = smoothCursor; toggleSmoothCursor(false); }
+                if(config.theme) setTheme(config.theme, null, false);
+                if(config.focus !== undefined) { focusMode = config.focus; document.getElementById('focus-toggle').checked = focusMode; }
+                if(config.lang) currentLang = config.lang; 
+            }
+            // DEFAULT EN KONTROLÜ
+            if(!savedConfig) setLanguage('en', false);
+
+            const savedStats = localStorage.getItem('athena_heatmap');
+            if(savedStats) charStats = JSON.parse(savedStats);
+
+            document.querySelectorAll(".time-option").forEach(opt => {
+                opt.classList.remove("active");
+                if(parseInt(opt.getAttribute("data-time")) === selectedTime) opt.classList.add("active");
+            });
+            timeTag.innerText = selectedTime;
+            updateUI(); updatePBDisplay();
+        }
+
+        function savePreferences() {
+            localStorage.setItem('athena_config', JSON.stringify({
+                time: selectedTime, keys: Array.from(allowedKeys), sound: selectedSound, theme: currentTheme, smooth: smoothCursor, focus: focusMode, lang: currentLang
+            }));
+            updatePBDisplay();
+        }
+
+        function updateUI() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if(ui[currentLang][key]) el.innerHTML = ui[currentLang][key];
+            });
+            document.getElementById('lang-tr').classList.toggle('active', currentLang === 'tr');
+            document.getElementById('lang-en').classList.toggle('active', currentLang === 'en');
+        }
+
+        function setLanguage(lang, save = true) {
+            currentLang = lang; updateUI();
+            if(save) { savePreferences(); filterWords(); loadParagraph(); }
+        }
+
+        function setSound(type, save=true) {
+            selectedSound = type;
+            document.querySelectorAll('.sound-options .option-btn').forEach(btn => btn.classList.remove('active'));
+            const btn = document.getElementById('sound-'+type); if(btn) btn.classList.add('active');
+            if(save) { savePreferences(); playKeySound(); }
+        }
+
+        function setTheme(color, el, save=true) {
+            currentTheme = color; document.documentElement.style.setProperty('--theme-color', color);
+            document.querySelectorAll('.color-swatch').forEach(e => e.classList.remove('active'));
+            if(el) el.classList.add('active');
+            if(save) savePreferences();
+        }
+
+        function toggleFocusMode() { focusMode = document.getElementById('focus-toggle').checked; savePreferences(); }
+        function toggleSmoothCursor(save=true) {
+            smoothCursor = document.getElementById('smooth-toggle').checked;
+            const c = document.getElementById('cursor');
+            if(smoothCursor) c.classList.remove('no-smooth'); else c.classList.add('no-smooth');
+            if(save) savePreferences();
+        }
+
+        function updatePBDisplay() {
+            const stats = JSON.parse(localStorage.getItem('athena_stats')) || {};
+            pbValueTag.innerText = stats[`${selectedTime}_${currentLang}`] || 0;
+        }
+
+        function checkAndSaveScore(wpm) {
+            if(allowedKeys.size < alphabet.length) return false;
+            const stats = JSON.parse(localStorage.getItem('athena_stats')) || {};
+            const key = `${selectedTime}_${currentLang}`;
+            if(wpm > (stats[key] || 0)) {
+                stats[key] = wpm;
+                localStorage.setItem('athena_stats', JSON.stringify(stats));
+                return true;
+            }
+            return false;
+        }
+
+        function resetPersonalBests() {
+            if(confirm(ui[currentLang].alertReset)) {
+                localStorage.removeItem('athena_stats');
+                localStorage.removeItem('athena_heatmap');
+                charStats = {};
+                updatePBDisplay();
+                alert(ui[currentLang].alertResetDone);
+            }
+        }
+
+        function updateCharStats(char, isCorrect) {
+            if(!charStats[char]) charStats[char] = {c:0, w:0};
+            if(isCorrect) charStats[char].c++; else charStats[char].w++;
+            localStorage.setItem('athena_heatmap', JSON.stringify(charStats));
+        }
+
+        function generateHeatmap() {
+            const container = document.getElementById('heatmap-container');
+            container.innerHTML = "";
+            qwertyRows.forEach(row => {
+                let div = document.createElement('div'); div.className = 'keyboard-row';
+                row.split('').forEach(char => {
+                    let btn = document.createElement('div'); btn.className = 'key-cap heatmap-key';
+                    btn.innerText = char.toUpperCase();
+                    if(charStats[char]) {
+                        let total = charStats[char].c + charStats[char].w;
+                        if(total > 0) {
+                            let ratio = charStats[char].w / total;
+                            if(ratio === 0) btn.style.borderBottomColor = "#2ecc71";
+                            else if(ratio < 0.2) btn.style.borderBottomColor = "#f1c40f";
+                            else btn.style.borderBottomColor = "#e74c3c";
+                            if(ratio > 0.1) btn.style.backgroundColor = `rgba(231, 76, 60, ${ratio * 0.5})`;
+                        }
+                    }
+                    div.appendChild(btn);
+                });
+                container.appendChild(div);
+            });
+        }
+        function openHeatmap() { generateHeatmap(); document.getElementById('heatmap-modal').style.display = "flex"; }
+
+        function generateKeyboard() {
+            const container = document.getElementById('keyboard-container');
+            container.innerHTML = "";
+            qwertyRows.forEach(row => {
+                let div = document.createElement('div'); div.className = 'keyboard-row';
+                row.split('').forEach(char => {
+                    let btn = document.createElement('div'); btn.className = 'key-cap';
+                    if(allowedKeys.has(char)) btn.classList.add('selected');
+                    btn.innerText = char.toUpperCase();
+                    btn.onclick = () => { 
+                        if(allowedKeys.has(char)) { allowedKeys.delete(char); btn.classList.remove('selected'); }
+                        else { allowedKeys.add(char); btn.classList.add('selected'); }
+                    };
+                    div.appendChild(btn);
+                });
+                container.appendChild(div);
+            });
+        }
+        function clearSelection() { allowedKeys.clear(); document.querySelectorAll('#keyboard-container .key-cap').forEach(e=>e.classList.remove('selected')); }
+
+        function filterWords() {
+            const source = (currentLang === 'tr' ? wordsTR : wordsEN).split(" ");
+            if(allowedKeys.size === 0) currentWordList = source;
+            else currentWordList = source.filter(w => w.split('').every(c => allowedKeys.has(c)));
+            if(currentWordList.length === 0) { alert(ui[currentLang].alertNoWords); currentWordList = source; allowedKeys = new Set(alphabet.split("")); }
+        }
+
+        function openModal(id) { if(id==='keyboard-modal') generateKeyboard(); document.getElementById(id).style.display='flex'; }
+        function closeModal(id) { document.getElementById(id).style.display='none'; }
+        window.onclick = e => { if(e.target.classList.contains('modal-overlay')) e.target.style.display='none'; };
+
+        function setTime(time) {
+            selectedTime = time; maxTime = time;
+            document.querySelectorAll(".time-option").forEach(opt => opt.classList.remove("active"));
+            event.target.classList.add("active");
+            savePreferences(); resetGame();
+        }
+
+        function addWords(count=30) {
+            for(let i=0; i<count; i++) {
+                let word = currentWordList[Math.floor(Math.random() * currentWordList.length)];
+                let div = document.createElement('div'); div.className='word';
+                word.split('').forEach(char => {
+                    let s = document.createElement('span'); s.innerText=char; div.appendChild(s);
+                });
+                let sp = document.createElement('span'); sp.innerHTML='&nbsp;'; sp.className='space'; div.appendChild(sp);
+                typingText.appendChild(div);
+            }
+        }
+
+        function loadParagraph() {
+            typingText.classList.remove("loaded"); void typingText.offsetWidth;
+            typingText.innerHTML = '<div id="cursor" class="blinking"></div>';
+            cursor = document.getElementById("cursor");
+            if(!smoothCursor) cursor.classList.add("no-smooth");
+            addWords(60); typingText.classList.add("loaded");
+            const span = typingText.querySelector("span");
+            if(span) setTimeout(() => { if(cursor) { cursor.style.display="block"; updateCursor(span); } }, 10);
+            document.addEventListener("keydown", () => inpField.focus());
+            typingText.addEventListener("click", () => inpField.focus());
+        }
+
+        function updateCursor(span) {
+            if(!cursor || !span) return;
+            cursor.style.left = span.offsetLeft + "px"; cursor.style.top = (span.offsetTop + 9) + "px";
+        }
+
+        function handleScroll(span) {
+            const div = span.parentElement;
+            let top = div.offsetTop;
+            let margin = Math.abs(parseInt(window.getComputedStyle(typingText).marginTop) || 0);
+            if(top > margin + LINE_HEIGHT) typingText.style.marginTop = -(margin + LINE_HEIGHT) + "px";
+        }
+        function handleScrollUp(span) {
+            let top = span.parentElement.offsetTop;
+            let margin = Math.abs(parseInt(window.getComputedStyle(typingText).marginTop) || 0);
+            if(top < margin) typingText.style.marginTop = -top + "px";
+        }
+
+        function initTyping() {
+            const spans = typingText.querySelectorAll('span');
+            let char = inpField.value.split('')[charIndex];
+            if(timeLeft > 0) {
+                if(!isTyping) {
+                    timer = setInterval(() => { if(timeLeft > 0) { timeLeft--; timeTag.innerText = timeLeft; } else finishGame(); }, 1000);
+                    isTyping = true;
+                    if(cursor) { cursor.classList.remove('blinking'); cursor.classList.add('typing'); }
+                    if(focusMode) document.body.classList.add('focused');
+                }
+                if(spans.length - charIndex < 60) addWords(50);
+
+                if(char == null) { 
+                    if(charIndex > 0) {
+                        charIndex--;
+                        if(spans[charIndex].classList.contains('incorrect')) mistakes--; else correctChars--;
+                        spans[charIndex].classList.remove('correct', 'incorrect');
+                        handleScrollUp(spans[charIndex]); updateCursor(spans[charIndex]);
+                    }
+                } else {
+                    playKeySound();
+                    let target = spans[charIndex].innerText;
+                    if(target === char || (spans[charIndex].classList.contains('space') && char === ' ')) {
+                        spans[charIndex].classList.add('correct'); correctChars++;
+                        updateCharStats(target.toLowerCase(), true);
+                    } else {
+                        mistakes++; spans[charIndex].classList.add('incorrect');
+                        updateCharStats(target.toLowerCase(), false);
+                    }
+                    charIndex++;
+                    if(charIndex < spans.length) { handleScroll(spans[charIndex]); updateCursor(spans[charIndex]); }
+                }
+            }
+        }
+
+        function finishGame() {
+            clearInterval(timer); inpField.disabled = true;
+            if(cursor) cursor.classList.remove('typing');
+            document.body.classList.remove('focused');
+            let wpm = Math.round(((correctChars)/5) / (maxTime/60)) || 0;
+            let acc = Math.round((correctChars / (correctChars+mistakes)) * 100) || 0;
+            
+            const newRec = checkAndSaveScore(wpm);
+            newRecordTag.style.display = newRec ? 'block' : 'none';
+            updatePBDisplay();
+
+            document.getElementById('res-wpm').innerText = wpm;
+            document.getElementById('res-acc').innerText = acc + "%";
+            document.getElementById('res-correct').innerText = correctChars;
+            document.getElementById('res-wrong').innerText = mistakes;
+            
+            document.getElementById('header').classList.add('hidden');
+            document.getElementById('typing-box-container').classList.add('hidden');
+            document.getElementById('result-screen').style.display = 'flex';
+            document.getElementById('retry-btn').focus();
+        }
+
+        function resetGame() {
+            loadParagraph(); clearInterval(timer);
+            timeLeft = selectedTime; charIndex = mistakes = correctChars = 0; isTyping = false;
+            inpField.value = ""; inpField.disabled = false; timeTag.innerText = timeLeft;
+            typingText.style.marginTop = "0px";
+            document.body.classList.remove('focused');
+            document.getElementById('header').classList.remove('hidden');
+            document.getElementById('typing-box-container').classList.remove('hidden');
+            document.getElementById('result-screen').style.display = 'none';
+            inpField.focus();
+        }
+
+        inpField.addEventListener("input", initTyping);
+        document.getElementById('retry-btn').addEventListener('click', resetGame);
+        
+        let isTab = false;
+        document.addEventListener('keydown', e => {
+            if(e.key === 'Tab') { e.preventDefault(); isTab = true; }
+            else if(e.key === 'Enter' && isTab) { resetGame(); isTab = false; }
+            else if(e.key === 'Escape') document.querySelectorAll('.modal-overlay').forEach(m => m.style.display='none');
+            else if(timeLeft > 0 && document.getElementById('keyboard-modal').style.display !== 'flex') inpField.focus();
+        });
+        document.addEventListener('keyup', e => { if(e.key === 'Tab') isTab = false; });
+        document.querySelector(".brand").addEventListener("click", () => resetGame());
+
+        loadPreferences(); filterWords(); loadParagraph(); window.onload = () => inpField.focus();
+    </script>
+</body>
+</html>
